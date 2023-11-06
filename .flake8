@@ -1,0 +1,10 @@
+[flake8]
+max-line-length = 100
+exclude = .venv
+ignore =
+    # disable "too many leading '#' for block comment"
+    E266,
+    # disable "line break before binary operator" which clashes with black
+    W503,
+    # disable "invalid escape sequence"
+    W605,

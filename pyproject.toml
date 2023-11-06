@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "whisper-dictate"
+version = "0.1.0"
+description = "Dictate using whisper and type so you don't have to."
+authors = ["Alan Descoins <alan@tryolabs.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+click = "^8.1.6"
+pynput = "^1.7.6"
+pyperclip = "^1.8.2"
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^6.1.0"
+black = "^23.7.0"
+isort = "^5.12.0"
+
+[tool.black]
+line-length = 100
+preview = true
+
+[tool.isort]
+atomic = true
+profile = "black"
+
+[tool.poetry.scripts]
+wdic = 'whisper-dictate:main'
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
