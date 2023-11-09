@@ -7,22 +7,65 @@ from queue import Queue
 
 import click
 import pyperclip
-import whisper_cpp
+from openai import OpenAI
 from pynput import keyboard
 from pynput.keyboard import Controller, Key
-from whisper_cpp import Whisper
+
+FORCE_OPENAI = False
+
+try:
+    from whisper_cpp import Whisper
+except ImportError:
+    print("whisper_cpp not installed, will use OpenAI's API.")
+    FORCE_OPENAI = True
 
 
 class WhisperDictateException(Exception):
     pass
 
 
-WHISPER_CPP_ROOT = os.environ.get("WHISPER_CPP_ROOT", "")
-if not WHISPER_CPP_ROOT or not os.path.exists(WHISPER_CPP_ROOT):
-    raise WhisperDictateException(
-        "`WHISPER_CPP_ROOT` env variable should be set to an existing directory with a whisper.cpp"
-        " installation."
-    )
+class WhisperAdapter:
+    """
+    Adapter that can transcribe either locally with whisper.cpp or using OpenAI's API.
+    """
+
+    def __init__(self, model: str, openai=False):
+        self.openai = openai or FORCE_OPENAI
+        if self.openai:
+            self.client = OpenAI()
+        else:
+            WHISPER_CPP_ROOT = os.environ.get("WHISPER_CPP_ROOT", "")
+            if not WHISPER_CPP_ROOT or not os.path.exists(WHISPER_CPP_ROOT):
+                raise WhisperDictateException(
+                    "`WHISPER_CPP_ROOT` env variable should be set to an existing directory with a"
+                    " whisper.cpp installation."
+                )
+
+            # Set verbose=False to avoid bug: https://github.com/sphantix/whisper-cpp-pybind/issues/1
+            self.whisper = Whisper(
+                os.path.join(WHISPER_CPP_ROOT, "models", f"ggml-{model}.bin"), verbose=False
+            )
+
+    def transcribe(self, audio_file_path: str, language: str = "auto") -> str:
+        prompt = "Use correct capitalization, and commas."
+        if self.openai:
+            kwargs = {
+                "model": "whisper-1",  # only model available so far
+                "file": open(audio_file_path, "rb"),
+                "prompt": prompt,
+            }
+            if language != "auto":
+                kwargs["language"] = language
+            return self.client.audio.transcriptions.create(**kwargs).text
+
+        # Whisper.cpp
+        self.whisper.transcribe(
+            audio_file_path,
+            language=language,
+            translate=False,
+            prompt=prompt,
+        )
+        return self.whisper.output(output_txt=True).strip()
 
 
 def notify(title, text):
@@ -45,7 +88,7 @@ def type_transcript(transcript_content):
 
 
 class WhisperDictate:
-    def __init__(self, model: str, language: str, paragraphs: bool):
+    def __init__(self, model: str, language: str, paragraphs: bool, openai: bool = False):
         self.recording_process = None
         self.is_recording = False
         self.combination = {
@@ -54,10 +97,7 @@ class WhisperDictate:
         }  # Left option and left command keys
         self.current_keys = set()
 
-        # Set verbose=False to avoid bug: https://github.com/sphantix/whisper-cpp-pybind/issues/1
-        self.whisper = Whisper(
-            os.path.join(WHISPER_CPP_ROOT, "models", f"ggml-{model}.bin"), verbose=False
-        )
+        self.whisper = WhisperAdapter(model, openai=openai)
         self.language = language
         self.paragraphs = paragraphs
 
@@ -71,16 +111,7 @@ class WhisperDictate:
             audio_file_path = self.queue.get()
             try:
                 notify("Processing audio", "Invoking whisper...")
-
-                # Call make_txt_transcript to generate the transcript
-                self.whisper.transcribe(
-                    # converted_wav_path,
-                    audio_file_path,
-                    language=self.language,
-                    translate=False,
-                    prompt="Use correct capitalization, and commas. Keep the original language.",
-                )
-                transcript = self.whisper.output(output_txt=True).strip()
+                transcript = self.whisper.transcribe(audio_file_path, language=self.language)
 
                 # Split into paragraph if more coming
                 if self.paragraphs and (self.is_recording or not self.queue.empty()):
@@ -125,7 +156,7 @@ class WhisperDictate:
         print(f"Recording started, temporary file: {self.tmpfile.name}")
 
     def stop_recording(self):
-        if self.is_recording:
+        if self.is_recording and self.recording_process:
             self.recording_process.terminate()
             self.recording_process.wait()
             self.queue.put(self.tmpfile.name)
@@ -157,8 +188,15 @@ class WhisperDictate:
     show_default=True,
     help="avoid adding line breaks when recording before the last one finished processing",
 )
-def main(model, language, no_paragraphs):
-    audio_recorder = WhisperDictate(model, language, paragraphs=not no_paragraphs)
+@click.option(
+    "--openai",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="use OpenAI's API instead of local whisper",
+)
+def main(model, language, no_paragraphs, openai):
+    audio_recorder = WhisperDictate(model, language, paragraphs=not no_paragraphs, openai=openai)
 
     with keyboard.Listener(
         on_press=audio_recorder.on_press, on_release=audio_recorder.on_release
