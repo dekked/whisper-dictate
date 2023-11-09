@@ -4,7 +4,7 @@ Run once. Hold left Opt+Cmd and speak. It will transcribe and type what you said
 
 Great multilingual transcription thanks to Whisper, [whisper.cpp](https://github.com/ggerganov/whisper.cpp)!
 
-⚠️ Only tested on macOS, using M1.
+⚠️ Only tested on macOS.
 
 ## Installation
 
@@ -12,7 +12,7 @@ Great multilingual transcription thanks to Whisper, [whisper.cpp](https://github
 
 2. Install dependencies with poetry: `poetry install`.
 
-3. If you prefer to use local whisper.cpp installation:
+3. If you prefer to use local whisper.cpp installation (slow unless you are using M1+):
 
    1. Clone [whisper.cpp](https://github.com/ggerganov/whisper.cpp#quick-start).
 
