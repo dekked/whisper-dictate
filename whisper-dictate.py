@@ -7,7 +7,7 @@ from queue import Queue
 
 import click
 import pyperclip
-from openai import OpenAI
+from openai import APIStatusError, OpenAI
 from pynput import keyboard
 from pynput.keyboard import Controller, Key
 
@@ -122,6 +122,8 @@ class WhisperDictate:
                 type_transcript(transcript)
             except EOFError as exc:
                 notify("Error processing audio", str(exc))
+            except APIStatusError as exc:
+                notify("Error processing audio", exc.message)
             finally:
                 self.queue.task_done()
 
