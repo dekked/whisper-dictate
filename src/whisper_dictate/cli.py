@@ -20,6 +20,11 @@ except ImportError:
     FORCE_OPENAI = True
 
 
+# https://github.com/paul-gauthier/aider/blob/03908c5ab64561aed7ce9eac331603215d1dd2ef/aider/voice.py#L68
+# https://github.com/paul-gauthier/aider/blob/03908c5ab64561aed7ce9eac331603215d1dd2ef/aider/commands.py#L552
+
+
+
 class WhisperDictateException(Exception):
     pass
 
