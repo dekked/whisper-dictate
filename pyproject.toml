@@ -1,20 +1,24 @@
-[tool.poetry]
-name = "whisper_dictate"
-version = "0.3.0"
+[project]
+name = "whisper-dictate"
+version = "0.4.0"
 description = "Dictate using whisper and type so you don't have to."
-authors = ["Alan Descoins <alan@tryolabs.com>"]
+# authors = [{ author = "Alan Descoins", email = "alan@tryolabs.com" }]
 readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyaudio>=0.2.14",
+    "openai>=1.42.0",
+    "click>=8.1.7",
+    "pynput>=1.7.7",
+    "pyperclip>=1.9.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-click = "^8.1.7"
-pynput = "^1.7.7"
-pyperclip = "^1.9.0"
-openai = "^1.35.3"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry.group.dev.dependencies]
-ipdb = "^0.13.13"
-ruff = "^0.4.10"
+[tool.uv]
+dev-dependencies = ["ipdb>=0.13.13", "ruff>=0.6.1"]
 
 [tool.ruff]
 line-length = 100
@@ -22,9 +26,5 @@ line-length = 100
 [tool.ruff.lint]
 extend-select = ["UP", "PERF", "SIM", "I", "B", "N", "S", "PGH"]
 
-[tool.poetry.scripts]
-wdic = "whisper_dictate.cli:main"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[project.scripts]
+wd = "whisper_dictate.cli:main"
