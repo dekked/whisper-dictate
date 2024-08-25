@@ -46,7 +46,7 @@ Great multilingual transcription thanks to Whisper, [whisper.cpp](https://github
 6. [Optional] Create an alias in your `.bashrc` or `.zshrc` so you can call `wd` from anywhere:
 
    ```bash
-   alias wd='<path>/whisper-dictate/.venv/bin/python -m whisper_dictate.cli --openai'
+   alias wd='cd <whisper-dictate path>; uv run wd --openai'
    ```
 
 ## Usage
