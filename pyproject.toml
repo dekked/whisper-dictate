@@ -7,7 +7,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pyaudio>=0.2.14",
-    "openai>=1.43.0",
+    "openai>=1.54.3",
     "click>=8.1.7",
     "pynput>=1.7.7",
     "pyperclip>=1.9.0",
@@ -20,7 +20,7 @@ build-backend = "hatchling.build"
 [tool.uv]
 dev-dependencies = [
     "ipdb>=0.13.13",
-    "ruff>=0.6.3"
+    "ruff>=0.7.2"
 ]
 
 [tool.ruff]
