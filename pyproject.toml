@@ -1,15 +1,15 @@
 [project]
 name = "whisper-dictate"
-version = "0.4.0"
+version = "0.5.0"
 description = "Dictate using whisper and type so you don't have to."
 authors = [{ name = "Alan Descoins", email = "alan@tryolabs.com" }]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pyaudio>=0.2.14",
-    "openai>=1.54.3",
-    "click>=8.1.7",
-    "pynput>=1.7.7",
+    "openai>=1.68.2",
+    "click>=8.1.8",
+    "pynput>=1.8.1",
     "pyperclip>=1.9.0",
 ]
 
@@ -20,7 +20,7 @@ build-backend = "hatchling.build"
 [tool.uv]
 dev-dependencies = [
     "ipdb>=0.13.13",
-    "ruff>=0.7.2"
+    "ruff>=0.11.2"
 ]
 
 [tool.ruff]

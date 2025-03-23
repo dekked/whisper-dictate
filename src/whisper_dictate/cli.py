@@ -11,18 +11,20 @@ from openai import APIStatusError, OpenAI
 from pynput import keyboard
 from pynput.keyboard import Controller, Key
 
-FORCE_OPENAI = False
+FAILED_WHISPER_CPP = False
 
 try:
     from whisper_cpp import Whisper
 except ImportError:
     print("whisper_cpp not installed, will use OpenAI's API.")
-    FORCE_OPENAI = True
+    FAILED_WHISPER_CPP = True
 
 
 # https://github.com/paul-gauthier/aider/blob/03908c5ab64561aed7ce9eac331603215d1dd2ef/aider/voice.py#L68
 # https://github.com/paul-gauthier/aider/blob/03908c5ab64561aed7ce9eac331603215d1dd2ef/aider/commands.py#L552
 
+
+SUPPORTED_MODELS = ["whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"]
 
 
 class WhisperDictateException(Exception):
@@ -34,11 +36,9 @@ class WhisperAdapter:
     Adapter that can transcribe either locally with whisper.cpp or using OpenAI's API.
     """
 
-    def __init__(self, model: str, openai=False):
-        self.openai = openai or FORCE_OPENAI
-        if self.openai:
-            self.client = OpenAI()
-        else:
+    def __init__(self, model: str, local: bool = False, openai_model: str | None = 'whisper-1'):
+        self.local = local and not FAILED_WHISPER_CPP
+        if self.local:
             WHISPER_CPP_ROOT = os.environ.get("WHISPER_CPP_ROOT", "")
             if not WHISPER_CPP_ROOT or not os.path.exists(WHISPER_CPP_ROOT):
                 raise WhisperDictateException(
@@ -50,28 +50,30 @@ class WhisperAdapter:
             self.whisper = Whisper(
                 os.path.join(WHISPER_CPP_ROOT, "models", f"ggml-{model}.bin"), verbose=False
             )
+        else:
+            self.openai_model = openai_model
+            self.client = OpenAI()
 
     def transcribe(self, audio_file_path: str, language: str = "auto") -> str:
         prompt = "Use correct capitalization, and commas."
-        if self.openai:
-            kwargs = {
-                "model": "whisper-1",  # only model available so far
-                "file": open(audio_file_path, "rb"),
-                "prompt": prompt,
-            }
-            if language != "auto":
-                kwargs["language"] = language
-            return self.client.audio.transcriptions.create(**kwargs).text
+        if self.local:
+            # Whisper.cpp
+            self.whisper.transcribe(
+                audio_file_path,
+                language=language,
+                translate=False,
+                prompt=prompt,
+            )
+            return self.whisper.output(output_txt=True).strip()
 
-        # Whisper.cpp
-        self.whisper.transcribe(
-            audio_file_path,
-            language=language,
-            translate=False,
-            prompt=prompt,
-        )
-        return self.whisper.output(output_txt=True).strip()
-
+        kwargs = {
+            "model": self.openai_model,
+            "file": open(audio_file_path, "rb"),
+            "prompt": prompt,
+        }
+        if language != "auto":
+            kwargs["language"] = language
+        return self.client.audio.transcriptions.create(**kwargs).text
 
 def notify(title, text):
     script = f'display notification "{text}" with title "{title}"'
@@ -93,7 +95,7 @@ def type_transcript(transcript_content):
 
 
 class WhisperDictate:
-    def __init__(self, model: str, language: str, paragraphs: bool, openai: bool = False):
+    def __init__(self, model: str, language: str, paragraphs: bool, local: bool = False, openai_model: str | None = None):
         self.recording_process = None
         self.is_recording = False
         self.combination = {
@@ -102,7 +104,7 @@ class WhisperDictate:
         }  # Left option and left command keys
         self.current_keys = set()
 
-        self.whisper = WhisperAdapter(model, openai=openai)
+        self.whisper = WhisperAdapter(model, local=local, openai_model=openai_model)
         self.language = language
         self.paragraphs = paragraphs
 
@@ -183,7 +185,7 @@ class WhisperDictate:
 
 
 @click.command()
-@click.option("-m", "--model", default="medium", show_default=True, help="whisper model to use")
+@click.option("-m", "--model", default="medium", show_default=True, help="if local, whisper model to use")
 @click.option(
     "-l", "--language", default="auto", show_default=True, help="language for transcription"
 )
@@ -196,14 +198,21 @@ class WhisperDictate:
     help="avoid adding line breaks when recording before the last one finished processing",
 )
 @click.option(
-    "--openai",
+    "--local",
     is_flag=True,
     default=False,
     show_default=True,
-    help="use OpenAI's API instead of local whisper",
+    help="use local whisper.cpp installation",
 )
-def main(model, language, no_paragraphs, openai):
-    audio_recorder = WhisperDictate(model, language, paragraphs=not no_paragraphs, openai=openai)
+@click.option(
+    "--openai-model",
+    default="whisper-1",
+    show_default=True,
+    type=click.Choice(SUPPORTED_MODELS),
+    help="if not local, specific OpenAI model to use",
+)
+def main(model, language, no_paragraphs, local, openai_model):
+    audio_recorder = WhisperDictate(model, language, paragraphs=not no_paragraphs, local=local, openai_model=openai_model)
 
     with keyboard.Listener(
         on_press=audio_recorder.on_press, on_release=audio_recorder.on_release
